@@ -10,7 +10,7 @@ require "GroupLib"
 -----------------------------------------------------------------------------------------------
 -- Upvalues
 -----------------------------------------------------------------------------------------------
-local MAJOR, MINOR = "WhatHappened-2.1", 2
+local MAJOR, MINOR = "WhatHappened-2.2", 2
 
 local error, floor, ipairs, pairs, tostring = error, math.floor, ipairs, pairs, tostring
 local strformat = string.format
@@ -308,7 +308,7 @@ function WhatHappened:OnDeath()
         tDeathInfo[#tDeathInfo + 1] = tEventArgs
     end
     self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
-    strLastDeathInfo = GenerateLog(self, strName)
+    GenerateLog(self, strName)
 end
 
 function WhatHappened:OnEnteredCombat(unitId, bInCombat)
@@ -382,7 +382,9 @@ local strFinalEvent
     xml:AppendText(tEventArgs.splCallingSpell:GetName(), tColors.crAbility, self.db.profile.strFontName, "Left")
     xml:AppendText(" for ", tColors.crWhite, self.db.profile.strFontName, "Left")
 
-    strFinalEvent = tEventArgs.strCasterName .. ", Death Blow: " .. tEventArgs.nDamageAmount or 0
+    if tEventArgs.strCasterName ~= nil or tEventArgs.nDamageAmount ~= nil then
+      strFinalEvent = tEventArgs.strCasterName .. ", Death Blow: " .. tEventArgs.nDamageAmount or 0
+    end
 
     if tEventArgs.nDamageAmount then  --check if its an attack!
       xml:AppendText((tEventArgs.nDamageAmount or 0) .. " " .. (tEventArgs.eDamageType and ktDamageTypeToName[tEventArgs.eDamageType] or "Unknown"), tColors.crDamage, self.db.profile.strFontName, "Left")
