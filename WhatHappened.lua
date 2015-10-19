@@ -423,7 +423,7 @@ local strFinalEvent
   else
     strChannel = "s" --regular chat
   end
-  
+
     if self.db.profile.bAnnounce then
         local strDeathMsg = "I Was Killed By: " .. strFinalEvent
         ChatSystemLib.Command(("/%s %s"):format(strChannel, strDeathMsg))
