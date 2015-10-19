@@ -184,6 +184,7 @@ function WhatHappened:OnInitialize()
     Apollo.RegisterEventHandler("WindowManagementReady", "OnWindowManagementReady", self)
     Apollo.RegisterEventHandler("WindowManagementRegister", "OnWindowManagementReady", self)
 
+--testing
     -- Load XML
     self.xml = XmlDoc.CreateFromFile("WhatHappened.xml")
 end
@@ -206,6 +207,7 @@ function WhatHappened:OnEnable()
     end
     wndColorList:ArrangeChildrenVert(0)
 
+
     -- Set Current NumMessages
     self.wndWhat:FindChild("OptionsSubForm:CombatHistory:HistoryCount"):SetText(self.db.profile.nNumMessages)
     self.wndWhat:FindChild("OptionsSubForm:CombatHistory:SliderContainer:SliderBar"):SetValue(self.db.profile.nNumMessages)
@@ -214,9 +216,9 @@ function WhatHappened:OnEnable()
     self.wndWhat:FindChild("OptionsSubForm:DeathAnnounce:btnDeathAnnounce"):SetCheck(self.db.profile.bAnnounce)
 
     -- Pre populate WhoSelection
-    local strName = GameLib.GetPlayerUnit():GetName()
-    self:AddDeathInfo(strName)
-    self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
+    --local strName = GameLib.GetPlayerUnit():GetName()
+    --self:AddDeathInfo(strName)
+    --self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
 
     -- Get reference to ChatLog addon, or its replacement
     tChatLog = Apollo.GetAddon(strChatAddon)
