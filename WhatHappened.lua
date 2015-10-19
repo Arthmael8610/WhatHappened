@@ -379,14 +379,18 @@ local strFinalEvent
   for nIdx, tEventArgs in ipairs(tDeathInfo) do
     local wndWhatLine = Apollo.LoadForm(self.xml, "WhatLine", wndWhatLog, self)
     local xml = XmlDoc.new()
-    xml:AddLine(tEventArgs.strCasterName, tColors.crAttacker, self.db.profile.strFontName, "Left")
+
+    if GameLib.GetPvpFlagInfo.bIsFlagged and GameLib.GetPvpFlagInfo.bIsForced then
+      strCaster = tEventArgs.unitCaster:GetName()
+    else
+      strCaster = tEventArgs.CasterName
+    end
+    xml:AddLine(strCaster, tColors.crAttacker, self.db.profile.strFontName, "Left")
     xml:AppendText(": ", tColors.crWhite, self.db.profile.strFontName, "Left")
     xml:AppendText(tEventArgs.splCallingSpell:GetName(), tColors.crAbility, self.db.profile.strFontName, "Left")
     xml:AppendText(" for ", tColors.crWhite, self.db.profile.strFontName, "Left")
 
-    if tEventArgs.strCasterName ~= nil or tEventArgs.nDamageAmount ~= nil then
-      strFinalEvent = tEventArgs.strCasterName .. ", Death Blow: " .. tEventArgs.nDamageAmount or 0
-    end
+    strFinalEvent = (strCaster or "Mystery Person") .. ", Death Blow: " .. (tEventArgs.nDamageAmount or 0)
 
     if tEventArgs.nDamageAmount then  --check if its an attack!
       xml:AppendText((tEventArgs.nDamageAmount or 0) .. " " .. (tEventArgs.eDamageType and ktDamageTypeToName[tEventArgs.eDamageType] or "Unknown"), tColors.crDamage, self.db.profile.strFontName, "Left")
@@ -412,9 +416,17 @@ local strFinalEvent
   wndWhatLog:ArrangeChildrenVert(0)
 
   --Announce your Death to the party.
+  if GroupLib:inGroup() == true and GroupLib.InInstance == false then
+    strChannel = "p" --party
+  elseif GroupLib.inGroup() == true and GroupLib.inInstance == true then
+    strChannel = "i" -- inInstance
+  else
+    strChannel = "s" --regular chat
+  end
+  
     if self.db.profile.bAnnounce then
-        local strDeathMsg = " I Was Killed By: " .. strFinalEvent
-        ChatSystemLib.Command(("/%s %s"):format("Party", strDeathMsg))
+        local strDeathMsg = "I Was Killed By: " .. strFinalEvent
+        ChatSystemLib.Command(("/%s %s"):format(strChannel, strDeathMsg))
     end
 end
 ---------------------------------------------------------------------------------------------------
