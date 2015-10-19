@@ -1,0 +1,16 @@
+package-as: WhatHappened
+enable-nolib-creation: no
+
+externals:
+  libs/GeminiAddon:
+    url: https://github.com/wildstarnasa/GeminiAddon.git
+  libs/GeminiDB:
+    url: https://github.com/wildstarnasa/GeminiDB.git
+  libs/GeminiColor:
+    url: https://github.com/wildstarnasa/GeminiColor.git
+  libs/LibApolloFixes-1.0:
+    url: https://github.com/wildstarnasa/LibApolloFixes.git
+
+ignore:
+  - README.md
+  - .gitignore
