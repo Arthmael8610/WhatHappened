@@ -1,4 +1,4 @@
-<?xml version="2.202" encoding="UTF-8"?>
+<?xml version="2.3b" encoding="UTF-8"?>
 <Addon Author="Arthmael" APIVersion="11" Name="WhatHappened" Description="Personal and Raid Death Reporting">
     <Script Name="libs/LibApolloFixes-1.0/LibApolloFixes-1.0.lua"/>
     <Script Name="libs/GeminiDB/GeminiDB-1.0.lua"/>
