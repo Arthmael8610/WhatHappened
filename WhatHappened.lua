@@ -380,11 +380,12 @@ local strFinalEvent
     local wndWhatLine = Apollo.LoadForm(self.xml, "WhatLine", wndWhatLog, self)
     local xml = XmlDoc.new()
 
-    if GameLib.GetPvpFlagInfo.bIsFlagged and GameLib.GetPvpFlagInfo.bIsForced then
+    if GameLib.GetPvpFlagInfo().bIsFlagged and GameLib.GetPvpFlagInfo().bIsForced then
       strCaster = tEventArgs.unitCaster:GetName()
     else
       strCaster = tEventArgs.CasterName
     end
+
     xml:AddLine(strCaster, tColors.crAttacker, self.db.profile.strFontName, "Left")
     xml:AppendText(": ", tColors.crWhite, self.db.profile.strFontName, "Left")
     xml:AppendText(tEventArgs.splCallingSpell:GetName(), tColors.crAbility, self.db.profile.strFontName, "Left")
