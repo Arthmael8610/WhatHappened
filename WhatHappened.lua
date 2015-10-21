@@ -10,7 +10,7 @@ require "GroupLib"
 -----------------------------------------------------------------------------------------------
 -- Upvalues
 -----------------------------------------------------------------------------------------------
-local MAJOR, MINOR = "WhatHappened-2.2", 2
+local MAJOR, MINOR = "WhatHappened", 2
 
 local error, floor, ipairs, pairs, tostring = error, math.floor, ipairs, pairs, tostring
 local strformat = string.format
@@ -19,12 +19,11 @@ local strformat = string.format
 local Apollo, ApolloColor, ApolloTimer = Apollo, ApolloColor, ApolloTimer
 local GameLib, XmlDoc = GameLib, XmlDoc
 local Event_FireGenericEvent, Print = Event_FireGenericEvent, Print
-
+local Rover = Apollo.GetAddon("Rover")
 -----------------------------------------------------------------------------------------------
 -- WTF Module Definition
 -----------------------------------------------------------------------------------------------
 local WhatHappened = Apollo.GetPackage("Gemini:Addon-1.1").tPackage:NewAddon("WhatHappened", false, {"ChatLog"})
-
 -----------------------------------------------------------------------------------------------
 -- Locals
 -----------------------------------------------------------------------------------------------
@@ -119,6 +118,7 @@ local tReplacementAddons = {
   "ChatFixed",
   "Fixed Chat Log"
 }
+
 -----------------------------------------------------------------------------------------------
 -- Standard Queue
 -----------------------------------------------------------------------------------------------
@@ -172,6 +172,7 @@ function WhatHappened:OnInitialize()
     Apollo.RegisterSlashCommand("wh", "OnWhatHappenedOn", self)
     Apollo.RegisterSlashCommand("wtf", "OnWhatHappenedOn", self)
     Apollo.RegisterSlashCommand("announce", "OnAnnounceToggle", self)
+    Apollo.RegisterSlashCommand("debug", "OnDebugToggle", self)
 
     --Combat Event Handlers
     Apollo.RegisterEventHandler("CombatLogDamage", "OnCombatLogDamage", self)
@@ -216,12 +217,18 @@ function WhatHappened:OnEnable()
     self.wndWhat:FindChild("OptionsSubForm:DeathAnnounce:btnDeathAnnounce"):SetCheck(self.db.profile.bAnnounce)
 
     -- Pre populate WhoSelection
-    --local strName = GameLib.GetPlayerUnit():GetName()
-    --self:AddDeathInfo(strName)
-    --self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
+    local strName = GameLib.GetPlayerUnit():GetName()
+    self:AddDeathInfo(strName)
+    self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
 
     -- Get reference to ChatLog addon, or its replacement
     tChatLog = Apollo.GetAddon(strChatAddon)
+
+    local glog = Apollo.GetPackage("Gemini:Logging-1.2").tPackage:GetLogger({
+      level = "INFO",
+      patern = "%d [%c:%n] %l - %m",
+      appender = "GeminiConsole"
+      })
 end
 
 function WhatHappened:OnDependencyError(strDep, strError)
@@ -251,6 +258,10 @@ function WhatHappened:OnWhatHappenedOn(strCommand, strParam)
     end
 end
 
+function WhatHappened:OnDebugToggle()
+
+end
+
 -----------------------------------------------------------------------------------------------
 -- Event Handlers and Timers
 -----------------------------------------------------------------------------------------------
@@ -277,8 +288,10 @@ function WhatHappened:OnCombatLogDamage(tEventArgs)
     if unitMe:IsDead() then return end
 
 
-    tEventArgs.strCasterName = tEventArgs.unitCaster and tEventArgs.unitCaster:GetName() or "Unknown"
-    tEventArgs.unitCaster = nil
+    if tEventArgs.unitCaster then
+      tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
+    end
+    --tEventArgs.unitCaster = nil
 
     Queue.PushRight(tCombatQueue, tEventArgs)
     if Queue.Size(tCombatQueue) > self.db.profile.nNumMessages then
@@ -290,9 +303,10 @@ function WhatHappened:OnCombatLogHeal(tEventArgs)
   local unitMe = GameLib.GetPlayerUnit()
   -- We don't care about extra damage when we're dead either
   if unitMe:IsDead() then return end
-
-  tEventArgs.strCasterName = tEventArgs.strCasterName or (tEventArgs.unitCaster and tEventArgs.unitCaster:GetName() or "Unknown")
-  tEventArgs.unitCaster = nil
+  if tEventArgs.unitCaster then
+    tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
+  end
+  --tEventArgs.unitCaster = nil
 
   Queue.PushRight(tCombatQueue, tEventArgs)
   if Queue.Size(tCombatQueue) > self.db.profile.nNumMessages then
@@ -308,8 +322,31 @@ function WhatHappened:OnDeath()
     while Queue.Size(tCombatQueue) > 0 do
         local tEventArgs = Queue.PopLeft(tCombatQueue)
         tDeathInfo[#tDeathInfo + 1] = tEventArgs
+
     end
     self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
+    --Announce death
+    local last = #tDeathInfo
+    tAnnounceEventArgs = tDeathInfo[last]
+    if GroupLib:InGroup() == true and GroupLib:InInstance() == false then
+      strChannel = "p" --party
+    elseif GroupLib:InGroup() == true and GroupLib:InInstance() == true then
+      strChannel = "i" -- In Instance
+    else
+      strChannel = "s" --regular chat
+    end
+    if self.db.profile.bAnnounce then
+      SendVarToRover("tAnnounceEventArgs", tAnnounceEventArgs)
+
+        tAnnounceEventArgs.strCasterName = tAnnounceEventArgs.unitCaster and tAnnounceEventArgs.unitCaster:GetName() or "Unknown"
+        SendVarToRover("strCasterName", tAnnounceEventArgs.strCasterName)
+        local strDeathMsg = "I Was Killed By " .. tAnnounceEventArgs.strCasterName .. ": " .. tAnnounceEventArgs.splCallingSpell:GetName() .. " For " .. (tAnnounceEventArgs.nDamageAmount or 0)
+
+
+SendVarToRover("strDeathMsg", strDeathMsg)
+      ChatSystemLib.Command(("/%s %s"):format("guild", strDeathMsg))
+    end
+    --Generate Log for viewing
     GenerateLog(self, strName)
 end
 
@@ -368,30 +405,22 @@ end
 -- Log Display
 ---------------------------------------------------------------------------------------------------
 function GenerateLog(self, strName)
+
   local tDeathInfo = tDeathInfos[strName]
   if not tDeathInfo then return end
 
+--glog:info(tDeathInfo)
   local wndWhatLog = self.wndWhat:FindChild("WhatLog")
   wndWhatLog:DestroyChildren()
-
-local strFinalEvent
 
   for nIdx, tEventArgs in ipairs(tDeathInfo) do
     local wndWhatLine = Apollo.LoadForm(self.xml, "WhatLine", wndWhatLog, self)
     local xml = XmlDoc.new()
 
-    if GameLib.GetPvpFlagInfo().bIsFlagged and GameLib.GetPvpFlagInfo().bIsForced then
-      strCaster = tEventArgs.unitCaster:GetName()
-    else
-      strCaster = tEventArgs.CasterName
-    end
-
-    xml:AddLine(strCaster, tColors.crAttacker, self.db.profile.strFontName, "Left")
+    xml:AddLine(tEventArgs.strCasterName, tColors.crAttacker, self.db.profile.strFontName, "Left")
     xml:AppendText(": ", tColors.crWhite, self.db.profile.strFontName, "Left")
     xml:AppendText(tEventArgs.splCallingSpell:GetName(), tColors.crAbility, self.db.profile.strFontName, "Left")
     xml:AppendText(" for ", tColors.crWhite, self.db.profile.strFontName, "Left")
-
-    strFinalEvent = (strCaster or "Mystery Person") .. ", Death Blow: " .. (tEventArgs.nDamageAmount or 0)
 
     if tEventArgs.nDamageAmount then  --check if its an attack!
       xml:AppendText((tEventArgs.nDamageAmount or 0) .. " " .. (tEventArgs.eDamageType and ktDamageTypeToName[tEventArgs.eDamageType] or "Unknown"), tColors.crDamage, self.db.profile.strFontName, "Left")
@@ -409,26 +438,12 @@ local strFinalEvent
       end
 
     end
-
     wndWhatLine:SetDoc(xml)
     wndWhatLine:SetHeightToContentHeight()
 
   end
   wndWhatLog:ArrangeChildrenVert(0)
-
-  --Announce your Death to the party.
-  if GroupLib:inGroup() == true and GroupLib.InInstance == false then
-    strChannel = "p" --party
-  elseif GroupLib.inGroup() == true and GroupLib.inInstance == true then
-    strChannel = "i" -- inInstance
-  else
-    strChannel = "s" --regular chat
-  end
-
-    if self.db.profile.bAnnounce then
-        local strDeathMsg = "I Was Killed By: " .. strFinalEvent
-        ChatSystemLib.Command(("/%s %s"):format(strChannel, strDeathMsg))
-    end
+  SendVarToRover("tDeathInfo", tDeathInfo)
 end
 ---------------------------------------------------------------------------------------------------
 -- WhatWindow Options Functions
