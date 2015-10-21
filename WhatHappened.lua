@@ -179,6 +179,7 @@ function WhatHappened:OnInitialize()
     Apollo.RegisterEventHandler("CombatLogHeal", "OnCombatLogHeal", self)
     Apollo.RegisterEventHandler("CombatLogDeath", "OnDeath", self)
     Apollo.RegisterEventHandler("UnitEnteredCombat", "OnEnteredCombat", self)
+    Apollo.RegisterEventHandler("AnnounceDeath", "OnAnnounceDeath", self)
 
     -- Configuration Event Handlers
     Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
@@ -307,7 +308,7 @@ function WhatHappened:OnCombatLogHeal(tEventArgs)
     tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
   end
   --tEventArgs.unitCaster = nil
-
+SendVarToRover('combatqueue',tCombatQueue)
   Queue.PushRight(tCombatQueue, tEventArgs)
   if Queue.Size(tCombatQueue) > self.db.profile.nNumMessages then
     Queue.PopLeft(tCombatQueue)
@@ -322,30 +323,12 @@ function WhatHappened:OnDeath()
     while Queue.Size(tCombatQueue) > 0 do
         local tEventArgs = Queue.PopLeft(tCombatQueue)
         tDeathInfo[#tDeathInfo + 1] = tEventArgs
-
     end
-    self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
-    --Announce death
-    local last = #tDeathInfo
-    tAnnounceEventArgs = tDeathInfo[last]
-    if GroupLib:InGroup() == true and GroupLib:InInstance() == false then
-      strChannel = "p" --party
-    elseif GroupLib:InGroup() == true and GroupLib:InInstance() == true then
-      strChannel = "i" -- In Instance
-    else
-      strChannel = "s" --regular chat
-    end
-    if self.db.profile.bAnnounce then
-      SendVarToRover("tAnnounceEventArgs", tAnnounceEventArgs)
-
-        tAnnounceEventArgs.strCasterName = tAnnounceEventArgs.unitCaster and tAnnounceEventArgs.unitCaster:GetName() or "Unknown"
-        SendVarToRover("strCasterName", tAnnounceEventArgs.strCasterName)
-        local strDeathMsg = "I Was Killed By " .. tAnnounceEventArgs.strCasterName .. ": " .. tAnnounceEventArgs.splCallingSpell:GetName() .. " For " .. (tAnnounceEventArgs.nDamageAmount or 0)
-
-
-SendVarToRover("strDeathMsg", strDeathMsg)
-      ChatSystemLib.Command(("/%s %s"):format("guild", strDeathMsg))
-    end
+  --Death Announcement
+  if self.db.profile.bAnnounce == true then
+    Event_FireGenericEvent("AnnounceDeath", tDeathInfo, self)
+  end
+  self.wndWhat:FindChild("WhoButton:WhoText"):SetText(strName)
     --Generate Log for viewing
     GenerateLog(self, strName)
 end
@@ -361,6 +344,25 @@ function WhatHappened:OnAnnounceToggle()
 end
 function WhatHappened:OnAnnounceToggleOff()
     self.db.profile.bAnnounce = false
+end
+
+function WhatHappened:OnAnnounceDeath(tEventArgs)
+  --Announce death
+SendVarToRover("AnnounceEventArgs", tEventArgs)
+  local intLast = #tEventArgs
+  tEventArgs = tEventArgs[intLast]
+  if tEventArgs.unitCaster then
+    tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
+  end
+  local strDeathMsg = "I Was Killed By " .. tEventArgs.strCasterName .. ": " .. tEventArgs.splCallingSpell:GetName() .. " For " .. (tEventArgs.nDamageAmount or 0)
+
+  SendVarToRover("strDeathMsg", strDeathMsg)
+  if GroupLib:InGroup() == true and GroupLib:InInstance() == false then
+    ChatSystemLib.Command(("/p %s"):format(strDeathMsg))
+  elseif GroupLib:InGroup() == true and GroupLib:InInstance() == true then
+    ChatSystemLib.Command(("/i %s"):format(strDeathMsg))
+  end
+
 end
 ---------------------------------------------------------------------------------------------------
 -- Who Functions
@@ -443,7 +445,6 @@ function GenerateLog(self, strName)
 
   end
   wndWhatLog:ArrangeChildrenVert(0)
-  SendVarToRover("tDeathInfo", tDeathInfo)
 end
 ---------------------------------------------------------------------------------------------------
 -- WhatWindow Options Functions
