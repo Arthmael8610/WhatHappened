@@ -14,6 +14,7 @@ local MAJOR, MINOR = "WhatHappened", 2
 
 local error, floor, ipairs, pairs, tostring = error, math.floor, ipairs, pairs, tostring
 local strformat = string.format
+local glog
 
 -- Wildstar APIs
 local Apollo, ApolloColor, ApolloTimer = Apollo, ApolloColor, ApolloTimer
@@ -24,6 +25,7 @@ local Rover = Apollo.GetAddon("Rover")
 -- WTF Module Definition
 -----------------------------------------------------------------------------------------------
 local WhatHappened = Apollo.GetPackage("Gemini:Addon-1.1").tPackage:NewAddon("WhatHappened", false, {"ChatLog"})
+
 -----------------------------------------------------------------------------------------------
 -- Locals
 -----------------------------------------------------------------------------------------------
@@ -118,7 +120,6 @@ local tReplacementAddons = {
   "ChatFixed",
   "Fixed Chat Log"
 }
-
 -----------------------------------------------------------------------------------------------
 -- Standard Queue
 -----------------------------------------------------------------------------------------------
@@ -192,6 +193,12 @@ function WhatHappened:OnInitialize()
 end
 
 function WhatHappened:OnEnable()
+  GeminiLogging = Apollo.GetPackage("Gemini:Logging-1.2").tPackage
+  glog = GeminiLogging:GetLogger({
+          level = "INFO",
+          pattern = "%d %n %c %l - %m",
+          appender = "GeminiConsole"
+      })
 
     Print("WhatHappened Has Loaded and is ready to GO!")
     Print('Thank You for using my addon and please consider donating if possible!')
@@ -224,12 +231,6 @@ function WhatHappened:OnEnable()
 
     -- Get reference to ChatLog addon, or its replacement
     tChatLog = Apollo.GetAddon(strChatAddon)
-
-    local glog = Apollo.GetPackage("Gemini:Logging-1.2").tPackage:GetLogger({
-      level = "INFO",
-      patern = "%d [%c:%n] %l - %m",
-      appender = "GeminiConsole"
-      })
 end
 
 function WhatHappened:OnDependencyError(strDep, strError)
@@ -281,13 +282,18 @@ end
 
 function WhatHappened:OnCombatLogDamage(tEventArgs)
     local unitMe = GameLib.GetPlayerUnit()
+    -- if there is no unitCaster we dont care about it.
+    if not tEventArgs.unitCaster then return end
+    --if for some reason tEventArgs is nil then ignore it.
+    if not tEventArgs then return end
     -- Self inflicted damage doesn't count!
-    if tEventArgs.unitCaster == unitMe then return end
+    if tEventArgs.unitCaster:GetName() == unitMe:GetName() then return end
     -- We're only tracking damage to ourselves
-    if tEventArgs.unitTarget ~= unitMe then return end
+    if tEventArgs.unitTarget:GetName() ~= unitMe:GetName() then return end
     -- We don't care about extra damage when we're dead either
     if unitMe:IsDead() then return end
 
+--glog:info(tEventArgs.unitCaster:GetName())
 
     if tEventArgs.unitCaster then
       tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
@@ -302,13 +308,16 @@ end
 
 function WhatHappened:OnCombatLogHeal(tEventArgs)
   local unitMe = GameLib.GetPlayerUnit()
-  -- We don't care about extra damage when we're dead either
+  -- We're only tracking Healing to ourselves
+  if tEventArgs.unitTarget ~= unitMe then return end
+  -- We don't care about extra healing when we're dead either
   if unitMe:IsDead() then return end
+
   if tEventArgs.unitCaster then
     tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
   end
   --tEventArgs.unitCaster = nil
-SendVarToRover('combatqueue',tCombatQueue)
+--SendVarToRover('combatqueue',tCombatQueue)
   Queue.PushRight(tCombatQueue, tEventArgs)
   if Queue.Size(tCombatQueue) > self.db.profile.nNumMessages then
     Queue.PopLeft(tCombatQueue)
@@ -348,19 +357,23 @@ end
 
 function WhatHappened:OnAnnounceDeath(tEventArgs)
   --Announce death
-SendVarToRover("AnnounceEventArgs", tEventArgs)
+  --if for some reason tEventArgs is nil then ignore it.
+  if not tEventArgs then return end
+
   local intLast = #tEventArgs
   tEventArgs = tEventArgs[intLast]
   if tEventArgs.unitCaster then
-    tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
+    tEventArgs.strCasterName = tEventArgs.unitCaster and tEventArgs.unitCaster:GetName() or "Unknown"
   end
   local strDeathMsg = "I Was Killed By " .. tEventArgs.strCasterName .. ": " .. tEventArgs.splCallingSpell:GetName() .. " For " .. (tEventArgs.nDamageAmount or 0)
 
-  SendVarToRover("strDeathMsg", strDeathMsg)
+--SendVarToRover("strDeathMsg", strDeathMsg)
   if GroupLib:InGroup() == true and GroupLib:InInstance() == false then
     ChatSystemLib.Command(("/p %s"):format(strDeathMsg))
   elseif GroupLib:InGroup() == true and GroupLib:InInstance() == true then
     ChatSystemLib.Command(("/i %s"):format(strDeathMsg))
+  else
+    ChatSystemLib.Command(("/g %s"):format(strDeathMsg))
   end
 
 end

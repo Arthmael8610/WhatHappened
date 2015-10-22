@@ -1,9 +1,10 @@
-<?xml version="2.5" encoding="UTF-8"?>
+<?xml version="2.6" encoding="UTF-8"?>
 <Addon Author="Arthmael" APIVersion="11" Name="WhatHappened" Description="Personal and Raid Death Reporting">
     <Script Name="libs/LibApolloFixes-1.0/LibApolloFixes-1.0.lua"/>
     <Script Name="libs/GeminiDB/GeminiDB-1.0.lua"/>
     <Script Name="libs/GeminiAddon/GeminiAddon.lua"/>
     <Script Name="libs/GeminiColor/GeminiColor.lua"/>
+    <Script Name="libs/GeminiLogging/GeminiLogging.lua"/>
     <Script Name="WhatHappened.lua"/>
     <Form Name="WhatHappened.xml"/>
 </Addon>
