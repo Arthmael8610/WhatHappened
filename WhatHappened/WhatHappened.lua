@@ -20,7 +20,7 @@ local glog
 local Apollo, ApolloColor, ApolloTimer = Apollo, ApolloColor, ApolloTimer
 local GameLib, XmlDoc = GameLib, XmlDoc
 local Event_FireGenericEvent, Print = Event_FireGenericEvent, Print
---local Rover = Apollo.GetAddon("Rover")
+local Rover = Apollo.GetAddon("Rover")
 -----------------------------------------------------------------------------------------------
 -- WTF Module Definition
 -----------------------------------------------------------------------------------------------
@@ -177,7 +177,7 @@ function WhatHappened:OnInitialize()
 
     --Combat Event Handlers
     Apollo.RegisterEventHandler("CombatLogDamage", "OnCombatLogDamage", self)
-    --Apollo.RegisterEventHandler("CombatLogHeal", "OnCombatLogHeal", self)
+    Apollo.RegisterEventHandler("CombatLogHeal", "OnCombatLogHeal", self)
     Apollo.RegisterEventHandler("CombatLogDeath", "OnDeath", self)
     Apollo.RegisterEventHandler("UnitEnteredCombat", "OnEnteredCombat", self)
     Apollo.RegisterEventHandler("AnnounceDeath", "OnAnnounceDeath", self)
@@ -281,32 +281,24 @@ function WhatHappened:OnChatTimer()
 end
 
 function WhatHappened:OnCombatLogDamage(tEventArgs)
-  --if you are in PvP ignore everything
-    local bPvpFlagged = GameLib:GetPvpFlagInfo().bIsFlagged
-    local bIsForced = GameLib:GetPvpFlagInfo().bIsForced
-    if bPvpFlagged and bIsForced == true then return end
-
     local unitMe = GameLib.GetPlayerUnit()
-    --if for some reason tEventArgs is nil then ignore it.
-    if not tEventArgs then return end
     -- if there is no unitCaster we dont care about it.
     if not tEventArgs.unitCaster then return end
+    --if for some reason tEventArgs is nil then ignore it.
+    if not tEventArgs then return end
     -- Self inflicted damage doesn't count!
-    if tEventArgs.unitCaster == unitMe then return end
-    --if no unitTarget then ignore it.
-    if not tEventArgs.unitTarget then return end
+    if tEventArgs.unitCaster:GetName() == unitMe:GetName() then return end
     -- We're only tracking damage to ourselves
-    if tEventArgs.unitTarget ~= unitMe then return end
+    if tEventArgs.unitTarget:GetName() ~= unitMe:GetName() then return end
     -- We don't care about extra damage when we're dead either
     if unitMe:IsDead() then return end
 
---glog:info(tEventArgs.splCallingSpell:GetAOETargetInfo())
+--glog:info(tEventArgs.unitCaster:GetName())
 
-    tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
-    tEventArgs.strSpellName = tEventArgs.splCallingSpell:GetName() or "Unknown Spell"
-    tEventArgs.tAOETargetInfo = tEventArgs.splCallingSpell:GetAOETargetInfo() or "No AOE Target Info"
-    tEventArgs.unitCaster = nil
---SendVarToRover("eventArrgs", tEventArgs, 0)
+    if tEventArgs.unitCaster then
+      tEventArgs.strCasterName = tEventArgs.unitCaster:GetName() or "Unknown"
+    end
+    --tEventArgs.unitCaster = nil
 
     Queue.PushRight(tCombatQueue, tEventArgs)
     if Queue.Size(tCombatQueue) > self.db.profile.nNumMessages then
@@ -316,16 +308,6 @@ end
 
 function WhatHappened:OnCombatLogHeal(tEventArgs)
   local unitMe = GameLib.GetPlayerUnit()
-  local bPvpFlagged = GameLib:GetPvpFlagInfo().bIsFlagged
-  local bIsForced = GameLib:GetPvpFlagInfo().bIsForced
-  if bPvpFlagged and bIsForced == true then return end
-
-  --if for some reason tEventArgs is nil then ignore it.
-  if not tEventArgs then return end
-  -- if there is no unitCaster we dont care about it.
-  if not tEventArgs.unitCaster then return end
-  --if no unitTarget then ignore it.
-  if not tEventArgs.unitTarget then return end
   -- We're only tracking Healing to ourselves
   if tEventArgs.unitTarget ~= unitMe then return end
   -- We don't care about extra healing when we're dead either
@@ -343,10 +325,6 @@ function WhatHappened:OnCombatLogHeal(tEventArgs)
 end
 
 function WhatHappened:OnDeath()
-  local bPvpFlagged = GameLib:GetPvpFlagInfo().bIsFlagged
-  local bIsForced = GameLib:GetPvpFlagInfo().bIsForced
-  if bPvpFlagged and bIsForced == true then return end
-
     local tMessage = {}
     local strName = GameLib.GetPlayerUnit():GetName()
     tDeathInfos[strName] = {}
@@ -376,9 +354,6 @@ end
 function WhatHappened:OnAnnounceToggleOff()
     self.db.profile.bAnnounce = false
 end
-function WhatHappened:OnChangeAnnounce()
---may need this soon!
-end
 
 function WhatHappened:OnAnnounceDeath(tEventArgs)
   --Announce death
@@ -393,13 +368,12 @@ function WhatHappened:OnAnnounceDeath(tEventArgs)
   local strDeathMsg = "I Was Killed By " .. tEventArgs.strCasterName .. ": " .. tEventArgs.splCallingSpell:GetName() .. " For " .. (tEventArgs.nDamageAmount or 0)
 
 --SendVarToRover("strDeathMsg", strDeathMsg)
-
   if GroupLib:InGroup() == true and GroupLib:InInstance() == false then
-    ChatSystemLib.Command(("/party %s"):format(strDeathMsg))
+    ChatSystemLib.Command(("/p %s"):format(strDeathMsg))
   elseif GroupLib:InGroup() == true and GroupLib:InInstance() == true then
-    ChatSystemLib.Command(("/instance %s"):format(strDeathMsg))
-  --[[else
-    ChatSystemLib.Command(("/g %s"):format(strDeathMsg))]]
+    ChatSystemLib.Command(("/i %s"):format(strDeathMsg))
+  else
+    ChatSystemLib.Command(("/g %s"):format(strDeathMsg))
   end
 
 end
